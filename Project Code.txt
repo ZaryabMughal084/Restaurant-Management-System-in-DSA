@@ -1,0 +1,500 @@
+#include <iostream>
+#include <string>
+#include <queue>
+#include <vector>
+#include <stack>
+#include <cstdlib>
+using namespace std;
+
+// FUNCTIONS PROTOTYPE
+void clearScreen();
+void orderPizza();
+void OrderBurger();
+void displayMenu();
+void serveCustomer();
+
+// GLOBAL DECLARATIONS
+bool feedbackGiven = false;
+int totalBill = 0;
+bool isOrderCancelled = false;
+int orderCount = 1;
+
+class MenuItem 
+{
+public:
+    string name;
+    int price;
+    MenuItem* next;
+    MenuItem()
+    {
+        name = "";
+        price = 0;
+        next = nullptr;
+    }
+};
+
+class MenuItemNode 
+{
+public:
+    string name;
+    int price;
+    MenuItemNode* left;
+    MenuItemNode* right;
+    MenuItemNode() 
+    {
+        name = "";
+        price = 0;
+        left = nullptr;
+        right = nullptr;
+    }
+};
+
+MenuItemNode* menuRoot = nullptr; // Global root node pointer for the menu tree
+
+void insertMenuItem(MenuItemNode*& node, string name, int price) 
+{
+    if (node == nullptr)
+    {
+        node = new MenuItemNode;
+        node->name = name;
+        node->price = price;
+        node->left = node->right = nullptr;
+    }
+    else
+    {
+        if (name < node->name) 
+        {
+            insertMenuItem(node->left, name, price);
+        }
+        else
+        {
+            insertMenuItem(node->right, name, price);
+        }
+    }
+}
+// Function to add a menu item to the binary search tree
+void addMenuItem(string name, int price)
+{
+    insertMenuItem(menuRoot, name, price);
+}
+// FeedbackNode struct for BST
+class FeedbackNode 
+{
+public:
+    string name;
+    int likes;
+    FeedbackNode* left;
+    FeedbackNode* right;
+    FeedbackNode(string n, int like)
+    {
+        name = n;
+        likes = like;
+        left = nullptr;
+        right = nullptr;
+    }
+};
+
+// Global root node pointer for the feedback tree
+FeedbackNode* feedbackRoot = nullptr;
+
+class CompareLikes 
+{
+public:
+    bool operator()(FeedbackNode* const& n1, FeedbackNode* const& n2) 
+    {
+        return n1->likes < n2->likes;
+    }
+};
+// Priority queue for most liked item
+priority_queue<FeedbackNode*, vector<FeedbackNode*>, CompareLikes> maxHeap;
+
+
+
+// Function to insert feedback into the BST
+void insertFeedback(FeedbackNode*& node, string name, int likes)
+{
+    if (node == nullptr) 
+    {
+        node = new FeedbackNode(name, likes);
+        maxHeap.push(node); // Push new feedback node into the max-heap
+    }
+    else 
+    {
+        if (name < node->name) 
+        {
+            insertFeedback(node->left, name, likes);
+        }
+        else if (name > node->name) 
+        {
+            insertFeedback(node->right, name, likes);
+        }
+        else
+        {
+            node->likes += likes;
+        }
+    }
+}
+void addFeedback(string name) 
+{
+    int likes = 0, choice;
+    bool validChoice = false;
+    while (!validChoice) {
+        cout << "1- Excellent\n2- Good\n3- Bad\n4- Poor\n";
+        cin >> choice;
+        switch (choice) {
+        case 1:
+            likes = 2; // Excellent
+            feedbackGiven = true;
+            insertFeedback(feedbackRoot, name, likes);
+            validChoice = true;
+            break;
+        case 2:
+            likes = 1; // Good
+            feedbackGiven = true;
+            insertFeedback(feedbackRoot, name, likes);
+            validChoice = true;
+            break;
+        case 3:
+            likes = 0; // Bad
+            feedbackGiven = true;
+            insertFeedback(feedbackRoot, name, likes);
+            validChoice = true;
+            break;
+        case 4:
+            likes = -1; // Poor
+            feedbackGiven = true;
+            insertFeedback(feedbackRoot, name, likes);
+            validChoice = true;
+            break;
+        default:
+            cout << "Invalid choice. Please enter a valid choice." << endl;
+            break;
+        }
+    }
+}
+
+void inOrderFeedback(FeedbackNode* node) 
+{
+    if (node == nullptr) 
+        return;
+    inOrderFeedback(node->left);
+    cout << node->name << " - Likes: " << node->likes << endl;
+    inOrderFeedback(node->right);
+}
+void displayFeedback()
+{
+    if (feedbackGiven)
+    {
+        cout << "Feedback for Menu Items:" << endl;
+        inOrderFeedback(feedbackRoot);
+    }
+    else
+    {
+        cout << "No feedback has been given in any case" << endl;
+    }
+}
+void displayMostLikedItem()
+{
+    if (feedbackGiven && !maxHeap.empty())
+    {
+        FeedbackNode* mostLiked = maxHeap.top();
+        cout << "Most Liked Item: " << mostLiked->name << " - Likes: " << mostLiked->likes << endl;
+    }
+
+}
+MenuItem* head = nullptr;      // Linked List head pointer
+stack<string> orderStack;     // Stack to keep track of orders
+queue<string> customerQueue; // Queue to manage multiple customers
+// Function to handle customer service
+void serveCustomer() 
+{
+    cout << "----------------------------------------------------------------\n";
+    cout << "                   WELCOME TO ADAB-RESTAURANT                   " << endl;
+    cout << "----------------------------------------------------------------\n";
+    string orderAgain;
+    displayMenu();
+    if (totalBill != 0 && !isOrderCancelled)
+    {
+        cout << "Your Total Bill is: " << totalBill << endl;
+        totalBill = 0;
+    }
+}
+// Function to display menu and handle user choice
+void displayMenu()
+{
+    int menuChoice;
+    string menus[3] = { "Pizza", "Burger", "Exit" };
+    string selectMenus[3] = { "Pizza", "Burgers", "Exit" };
+
+    while (true) {
+        for (int i = 0; i < 3; i++) {
+            cout << "\t" << menus[i] << "\t";
+        }
+        cout << "\n\nSelect Menu that You Want to Order.\n\n";
+        for (int i = 0; i < 3; i++) {
+            cout << i + 1 << ". for " << selectMenus[i] << endl;
+        }
+        cout << "----------------------------------------------------------------\n";
+        cout << "\nEnter choice (1-3): \n";
+        if (!(cin >> menuChoice)) {
+            cout << "Invalid input. Please enter a number.\n";
+            cin.clear(); // Clear error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+            continue;
+        }
+
+        switch (menuChoice) {
+        case 1:
+            orderPizza();
+            return; 
+        case 2:
+            OrderBurger();
+            return;
+        case 3:
+            return;
+        default:
+            cout << "You have entered an invalid input\n";
+            break;
+        }
+    }
+}
+
+void orderPizza() 
+{
+    string pizzaTypes[5] = { "Pepperoni Pizza", "Chicken Tikka", "Cheese Pizza", "BBQ Chicken", "Tomato Pie" };
+    string pizzaSizes[3] = { "Small", "Medium", "Large" };
+    int pizzaChoice;
+    cout << "\t\t\t\t\t    ------Pizza------" << endl;
+    cout << "\t\t\t\tPress '0' Pepperoni Pizza....................." << endl;
+    cout << "\t\t\t\tPress '1' Chicken Tikka......................." << endl;
+    cout << "\t\t\t\tPress '2' Cheese Pizza........................" << endl;
+    cout << "\t\t\t\tPress '3' BBQ Chicken........................." << endl;
+    cout << "\t\t\t\tPress '4' Tomato Pie.........................." << endl;
+    cout << "----------------------------------------------------------------\n";
+    cout << "Enter choice (0-4):";
+    cin >> pizzaChoice;
+    while (pizzaChoice < 0 || pizzaChoice > 4)
+    {
+        cout << "Enter valid choice: ";
+        cin >> pizzaChoice;
+    }
+    int pizzaSize;
+    cout << "\t\t\t\t\t    ------Pizza------" << endl;
+    cout << "\t\t\t\tPress '0' Small .........Rs:250 only" << endl;
+    cout << "\t\t\t\tPress '1' Medium........Rs:500 only" << endl;
+    cout << "\t\t\t\tPress '2' Large..........Rs:900 only" << endl;
+    cout << "----------------------------------------------------------------\n";
+    cout << "Enter choice (0-2): ";
+    cin >> pizzaSize;
+    while (pizzaSize < 0 || pizzaSize > 2)
+    {
+        cout << "Enter valid choice: ";
+        cin >> pizzaSize;
+    }
+    int pizzaQuantity;
+    cout << "Enter quantity (1-10): ";
+    cin >> pizzaQuantity;
+    while (pizzaQuantity < 1 || pizzaQuantity > 10) 
+    {
+        cout << "Enter valid choice: ";
+        cin >> pizzaQuantity;
+    }
+    int prices[] = { 250, 500, 900 };
+    totalBill = pizzaQuantity * prices[pizzaSize];
+    cout << "Added to your cart. Total amount is: " << totalBill << endl;
+    string addPizza;
+    bool validChoice = false;
+    while (!validChoice) {
+        cout << "Do you want to add another pizza?" << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+        cin >> addPizza;
+        if (addPizza == "y" || addPizza == "Y")
+        {
+            orderPizza();
+            validChoice = true;
+        }
+        else if (addPizza == "n" || addPizza == "N")
+        {
+            validChoice = true;
+            string orderCancel;
+            bool validCancelChoice = false;
+            while (!validCancelChoice) {
+                cout << "Do you want to cancel your order?" << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+                cin >> orderCancel;
+                if (orderCancel == "y" || orderCancel == "Y")
+                {
+                    validCancelChoice = true;
+                    cout << "\nYour order has been cancelled\n";
+                    cout << "Alright! You can order any time\n";
+                }
+                else if (orderCancel == "n" || orderCancel == "N")
+                {
+                    validCancelChoice = true;
+                }
+                else
+                {
+                    cout << "Invalid choice. Please enter 'Y/y' or 'N/n'." << endl;
+                }
+            }
+        }
+        else
+        {
+            cout << "Invalid choice. Please enter 'Y/y' or 'N/n'." << endl;
+        }
+    }
+
+    // Storing the order in the stack
+    string order = to_string(pizzaQuantity) + " " + pizzaSizes[pizzaSize] + " " + pizzaTypes[pizzaChoice];
+    orderStack.push(order);
+    string check;
+    // Adding feedback
+    cout << "Want to provide feedback for your " << pizzaTypes[pizzaChoice] << "? \n" 
+        << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+    cin >> check;
+    if (check == "Y" || check == "y")
+    {
+        addFeedback(pizzaTypes[pizzaChoice]);
+    }
+    else if (check == "N" || check == "n")
+    {
+        return;
+    }
+    
+}
+void OrderBurger()
+{
+    cout << "----------------------------------------------------------------\n";
+    cout << "                      -- Select Burgers --\n";
+    cout << "----------------------------------------------------------------\n";
+    string burgerTypes[5] = { "Beef Burger", "Chicken Burger", "Veggie Burger", "Cheese Burger", "Bacon Burger" };
+    string burgerSizes[3] = { "Small", "Medium", "Large" };
+    int burgerChoice;
+    cout << "\t\t\t\t\t    ------Burger------" << endl;
+    cout << "\t\t\t\tPress '0' Beef Burger....................." << endl;
+    cout << "\t\t\t\tPress '1' Chicken Burger.................." << endl;
+    cout << "\t\t\t\tPress '2' Veggie Burger..................." << endl;
+    cout << "\t\t\t\tPress '3' Cheese Burger..................." << endl;
+    cout << "\t\t\t\tPress '4' Bacon Burger...................." << endl;
+    cout << "----------------------------------------------------------------\n";
+    cout << "Enter choice (0-4): ";
+    cin >> burgerChoice;
+    while (burgerChoice < 0 || burgerChoice > 4)
+    {
+        cout << "Enter valid choice: ";
+        cin >> burgerChoice;
+    }
+    int burgerSize;
+    cout << "\t\t\t\t\t    ------Burger------" << endl;
+    cout << "\t\t\t\tPress '0' Small .........Rs:150 only" << endl;
+    cout << "\t\t\t\tPress '1' Medium........Rs:300 only" << endl;
+    cout << "\t\t\t\tPress '2' Large..........Rs:600 only" << endl;
+    cout << "----------------------------------------------------------------\n";
+    cout << "Enter choice (0-2): ";
+    cin >> burgerSize;
+    while (burgerSize < 0 || burgerSize > 2)
+    {
+        cout << "Enter valid choice: ";
+        cin >> burgerSize;
+    }
+    int burgerQuantity;
+    cout << "Enter quantity (1-10): ";
+    cin >> burgerQuantity;
+    while (burgerQuantity < 1 || burgerQuantity > 10)
+    {
+        cout << "Enter valid choice: ";
+        cin >> burgerQuantity;
+    }
+    int prices[] = { 150, 300, 600 };
+    totalBill += burgerQuantity * prices[burgerSize];
+    cout << "Added to your cart. Total amount is: " << totalBill << endl;
+    string orderBurger;
+    bool validChoice = false;
+    while (!validChoice) {
+        cout << "Do you want to add another burger?" << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+        cin >> orderBurger;
+        if (orderBurger == "y" || orderBurger == "Y")
+        {
+            OrderBurger();
+            validChoice = true;
+        }
+        else if (orderBurger == "n" || orderBurger == "N")
+        {
+            validChoice = true;
+            string orderCancel;
+            bool validCancelChoice = false;
+            while (!validCancelChoice) {
+                cout << "Do you want to cancel your order?" << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+                cin >> orderCancel;
+                if (orderCancel == "y" || orderCancel == "Y")
+                {
+                    validCancelChoice = true;
+                    cout << "\nYour order has been cancelled\n";
+                    cout << "Alright! You can order any time\n";
+                }
+                else if (orderCancel == "n" || orderCancel == "N")
+                {
+                    validCancelChoice = true;
+                }
+                else
+                {
+                    cout << "Invalid choice. Please enter 'Y/y' or 'N/n'." << endl;
+                }
+            }
+        }
+        else
+        {
+            cout << "Invalid choice. Please enter 'Y/y' or 'N/n'." << endl;
+        }
+        // Storing the order in the stack
+        string order = to_string(burgerQuantity) + " " + burgerSizes[burgerSize] + " " + burgerTypes[burgerChoice];
+        orderStack.push(order);
+        string check;
+        // Adding feedback
+        cout << "Want to provide feedback for your " << burgerTypes[burgerChoice] << "? \n"
+            << "\nFor YES, Press: Y/y\n" << "For NO, Press N/n\n";
+        cin >> check;
+        if (check == "Y" || check == "y")
+        {
+            addFeedback(burgerTypes[burgerChoice]);
+        }
+        else if (check == "N" || check == "n")
+        {
+            return;
+        }
+    }
+}
+void clearScreen()
+{
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+// Main function
+int main() {
+    // Adding customers to the queue
+    customerQueue.push("Customer 1");
+    customerQueue.push("Customer 2");
+    customerQueue.push("Customer 3");
+    while (!customerQueue.empty())
+    {
+        cout << "Serving " << customerQueue.front() << endl;
+        customerQueue.pop();
+        serveCustomer();
+        clearScreen();
+    }
+    string feedbackChoice;
+    cout << "Would you like to know about provided feedback? (Y/N): ";
+    cin >> feedbackChoice;
+    if (feedbackChoice == "Y" || feedbackChoice == "y")
+    {
+        displayFeedback();        // Display all feedback
+        displayMostLikedItem();  // Display the most liked item
+    }
+    else
+    {
+        cout << "Thank you for visiting. Have a great day!" << endl;
+    }
+    return 0;
+
+}
